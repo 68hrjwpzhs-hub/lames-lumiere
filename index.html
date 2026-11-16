@@ -2784,7 +2784,7 @@ const Perf = {
   },
 };
 // =============================== version installable (PWA) : hors ligne, mise à jour proposée au menu seulement ===============================
-const GAME_VERSION = '7.0.0', LUMIERE_VERSION = '6.3'; // Édition Lumière : mêmes mécaniques que la 7.0.0, autre moteur de rendu
+const GAME_VERSION = '7.0.0', LUMIERE_VERSION = '6.4'; // Édition Lumière : mêmes mécaniques que la 7.0.0, autre moteur de rendu
 const PWA = {
   init() {
     const v = $('verLine'); if (v) v.textContent = 'Version ' + GAME_VERSION + ' · Édition Lumière ' + LUMIERE_VERSION + (this.installed() ? ' · installée' : '');
@@ -7232,7 +7232,7 @@ const Anim4 = {
   },
   pose(f) { const s = this.st(f), P = f.pose, o = {}; for (const k of KEYS) o[k] = P[k] + (s.off[k] || 0); return o; },
   // articulations visuelles : on décale la pose de jeu sur place le temps du calcul (la main gauche, dague ou cape, n'est placée que pour la pose du personnage)
-  joints(f) { const s = this.st(f), P = f.pose, keep = {}; for (const k of KEYS) { keep[k] = P[k]; P[k] += s.off[k] || 0; } try { return f.joints(); } finally { for (const k of KEYS) P[k] = keep[k]; } },
+  joints(f) { const s = this.st(f), P = f.pose, keep = {}; for (const k of KEYS) { keep[k] = P[k]; P[k] += s.off[k] || 0; } const bo = typeof Art !== 'undefined' && Art.bladeOff ? Art.bladeOff(f) : null; if (bo) { P.a3 += bo.a3; P.a2 += bo.a2; P.bz = clamp((P.bz || 0) + bo.bz, -70, 70); } try { return f.joints(); } finally { for (const k of KEYS) P[k] = keep[k]; } },
   bendNow(f) { const s = this.st(f), t = G.time - s.bendT; if (t < 0 || t > .7) return 0; return s.bendA * Math.exp(-t * 7) * Math.sin(t * 52); },
 };
 // la lame qui plie : la garde se dessine comme avant, la lame est tracée en courbe par-dessus
@@ -7313,7 +7313,7 @@ body.ui5 .opt{border-color:rgba(190,196,206,.35)}body.ui5 .opt[aria-pressed="tru
 @media (prefers-reduced-motion:reduce){.screen:not([hidden]){animation:none}}`; document.head.appendChild(css);
     // options
     const row = $('optLumen') && $('optLumen').parentElement; const opt = (id, label, key, def) => { if (!row || $(id)) return; const c = document.createElement('button'); c.className = 'opt small'; c.id = id; c.textContent = label; const on = () => (def ? store.get(key, true) !== false : store.get(key, false) === true); c.addEventListener('click', () => { store.set(key, !on()); c.setAttribute('aria-pressed', on()); if (key === 'ct2d.perf4') Perf4.show(); }); row.appendChild(c); c.setAttribute('aria-pressed', on()); };
-    opt('optAnim4', 'Mouvements enrichis', 'ct2d.anim4', true); opt('optRes4', 'Définition auto', 'ct2d.res4', true); opt('optPerf4', 'Compteur d\'images', 'ct2d.perf4', false);  opt('optRays4', 'Rayons de lumière', 'ct2d.rayons', true); opt('optItal6', 'Escrime à l\'italienne', 'ct2d.ital', true);
+    opt('optAnim4', 'Mouvements enrichis', 'ct2d.anim4', true); opt('optRes4', 'Définition auto', 'ct2d.res4', true); opt('optPerf4', 'Compteur d\'images', 'ct2d.perf4', false);  opt('optRays4', 'Rayons de lumière', 'ct2d.rayons', true); opt('optItal6', 'Escrime à l\'italienne', 'ct2d.ital', true); opt('optLames6', 'Chemins de lame', 'ct2d.lames6', true);
     if (row && !$('optPerf4x')) { const c = document.createElement('button'); c.className = 'opt small'; c.id = 'optPerf4x'; c.textContent = 'Copier la mesure'; c.addEventListener('click', async () => { const t = Perf4.report(); try { await navigator.clipboard.writeText(t); toastMsg('Mesure copiée : collez-la dans un message.'); } catch (e) { prompt('Copiez ce texte :', t); } }); row.appendChild(c); }
   },
   // traînée d'un coup rapide : un éventail translucide entre la lame d'avant et celle d'aujourd'hui
@@ -7714,6 +7714,40 @@ const ITAL = {
   griffe: { torso: [[.5, -4], [2.3, 2.5]], py: [[.5, -3], [2.3, 1.5]], head: [[.5, -2], [1.4, 5]], b1: [[.5, -10], [1.4, 8]] },
 };
 const ital = (pts, s) => { let a = [0, 0]; for (const b of pts.concat([[3, 0]])) { if (s <= b[0]) { const u = (s - a[0]) / Math.max(1e-3, b[0] - a[0]), e = u * u * (3 - 2 * u); return a[1] + (b[1] - a[1]) * e; } a = b; } return 0; };
+// 6.4 · l'identité des lames : chaque coup a son propre chemin de pointe, joué sur la lame DESSINÉE seulement.
+// La lame de jeu (portées, parades, touches) ne change pas : la trajectoire dessinée la rejoint avant l'exécution et la quitte après.
+// s : 0→1 préparation, 1→2 exécution, 2→3 retour ; a3 : angle de la lame, bz : profondeur (la pointe passe devant ou derrière),
+// a2 : coude. Les cercles « en profondeur » se lisent de profil : la lame raccourcit et s'allonge pendant que la pointe monte et descend.
+const B6 = {
+  bump: (s, a, b) => s <= a || s >= b ? 0 : Math.sin(Math.PI * (s - a) / (b - a)),
+  ph: (s, a, b, n) => s <= a || s >= b ? 0 : 2 * Math.PI * n * (s - a) / (b - a),
+  ss: u => { u = clamp(u, 0, 1); return u * u * (3 - 2 * u); },
+};
+const BLADE6 = {
+  // stoccata dritta : la pointe s'abaisse d'un rien puis remonte dans la ligne, sans détour ; au retour, elle reste « en présence »
+  jab: s => { const b = B6.bump; return { a3: -8 * b(s, .02, .8) + 9 * b(s, 2.05, 2.75), a2: 7 * b(s, .02, .8), bz: 0 }; },
+  // passata : un tour de cavazione complet avant de partir (la pointe tourne autour du fer adverse), puis le grand départ ;
+  // au retour la pointe balaie bas et revient en ligne
+  fente: s => { const p = B6.ph(s, .04, .8, 1); return { a3: 11 * Math.sin(p) - 13 * B6.bump(s, 2.0, 2.55) + 6 * B6.bump(s, 2.45, 2.95), bz: 24 * (1 - Math.cos(p)) / 2, a2: 6 * B6.bump(s, .04, .8) }; },
+  // stoccata sotto : la pointe plonge sous la garde adverse, main tournée, la lame vue en raccourci ; elle se relève en sortant
+  bassa: s => { const b = B6.bump; return { a3: -26 * b(s, 0, .82) + 12 * b(s, 2.05, 2.8), bz: 18 * b(s, 0, .82), a2: -6 * b(s, 0, .82) }; },
+  // cavazione : deux petits cercles serrés autour du fer, rapides, la main ne bouge pas
+  degage: s => { const p = B6.ph(s, .05, .82, 2), r = B6.bump(s, .05, .82); return { a3: 8 * r * Math.sin(p), bz: 22 * r * Math.cos(p), a2: 0 }; },
+  // imbroccata : la main monte en prima, la pointe passe très haut, puis plonge de haut en bas vers la poitrine
+  circ: s => { const b = B6.bump; return { a3: 42 * b(s, 0, .85) - 15 * b(s, 2.0, 2.6), a2: 16 * b(s, 0, .85), bz: 10 * b(s, .3, .85) }; },
+  // finta e cavazione : la pointe menace droit devant, puis fait un demi-tour par-dessous pour passer de l'autre côté
+  compo: s => { const b = B6.bump, p = B6.ph(s, .38, .85, 1); return { a3: -5 * b(s, 0, .38) - 15 * Math.sin(p / 2) * (s > .38 && s < .85 ? 1 : 0) + 7 * b(s, 2.1, 2.8), bz: 28 * Math.sin(p) * (s > .38 && s < .85 ? 1 : 0), a2: -4 * b(s, 0, .38) }; },
+  // fente lourde : le moulinet est déjà dans le jeu ; au retour, la lame retombe lourdement puis se redresse
+  heavy: s => { const b = B6.bump; return { a3: -16 * b(s, 2.0, 2.5) + 7 * b(s, 2.4, 2.95), bz: 0, a2: 0 }; },
+  // risposta : pas de préparation ; au retour, un tour de poignet sec, signature du tireur qui vient de toucher
+  riposte: s => { const p = B6.ph(s, 2.05, 2.7, 1), r = B6.bump(s, 2.05, 2.7); return { a3: 10 * r * Math.sin(p), bz: 20 * r * Math.cos(p), a2: 0 }; },
+  // battuta : la lame s'ouvre largement, claque, puis rebondit
+  beat: s => { const b = B6.bump; return { a3: 24 * b(s, 0, .85) - 11 * b(s, 2.0, 2.4) + 4 * b(s, 2.35, 2.8), bz: -8 * b(s, 0, .85), a2: 8 * b(s, 0, .85) }; },
+  // legamento : une spirale qui se resserre, un tour et demi, pour envelopper le fer
+  lie: s => { const p = B6.ph(s, 0, .85, 1.5), r = B6.bump(s, 0, .85) * (1 - .6 * clamp(s / .85, 0, 1)); return { a3: 14 * r * Math.sin(p), bz: 30 * r * Math.cos(p), a2: 4 * r }; },
+  // tajo espagnol : un moulinet complet de la lame avant la taille descendante
+  tajo: s => { const u = clamp((s - .02) / .74, 0, 1); return { a3: s < .76 ? -360 * B6.ss(u) : 0, bz: 0, a2: 10 * B6.bump(s, 0, .76) }; },
+};
 const ART_ANIM_KEYS = { torso: 'Buste', a1: 'Épaule', a2: 'Coude', head: 'Tête', py: 'Hauteur', b1: 'Bras libre' };
 const Art = {
   rev: 0, heros: {}, decors: {}, effets: {}, anim: {}, lum: {}, lum0: {}, live: [],
@@ -7810,6 +7844,13 @@ const Art = {
     if (I) { const sP = ph === 'prep' ? clamp(t / Math.max(.03, m.wu), 0, 1) : ph === 'exec' ? 1 + clamp((t - m.wu) / Math.max(.03, m.act), 0, 1) : 2 + clamp((t - m.wu - m.act) / Math.max(.03, m.rec), 0, 1); for (const k in I) tgt[k] = (tgt[k] || 0) + ital(I[k], sP); return; }
     const A = own || (store.get('ct2d.jeu62', true) !== false && ART_ANIM_DEFAULT[kind] && ART_ANIM_DEFAULT[kind][ph]); if (!A) return; const u = ph === 'prep' ? t / Math.max(.03, m.wu) : ph === 'exec' ? (t - m.wu) / Math.max(.03, m.act) : (t - m.wu - m.act) / Math.max(.03, m.rec), e = Math.sin(Math.PI * clamp(u, 0, 1));
     for (const k in A) tgt[k] = (tgt[k] || 0) + A[k] * e;
+  },
+  // décalage de la lame dessinée : nul pendant l'exécution (± 0,03 s), libre avant et après
+  bladeOff(f) {
+    const m = f.move; if (f.state !== 'attack' || !m || !m.kind || m.kind === 'pending' || store.get('ct2d.lames6', true) === false) return null; const F = BLADE6[m.kind]; if (!F) return null;
+    const t = f.t, A = m.wu - .03, B = m.wu + m.act + .02, w = t > A && t < B ? 0 : t <= A ? clamp((A - t) / .03, 0, 1) : clamp((t - B) / .04, 0, 1); if (!w) return null;
+    const s = t < m.wu ? clamp(t / Math.max(.03, m.wu), 0, 1) : t <= m.wu + m.act ? 1 + (t - m.wu) / Math.max(.03, m.act) : 2 + clamp((t - m.wu - m.act) / Math.max(.03, m.rec), 0, 1), o = F(s);
+    return { a3: (o.a3 || 0) * w, bz: (o.bz || 0) * w, a2: (o.a2 || 0) * w };
   },
   // ---- lumière des lieux ----
   setLum(v, o) { if (!LUMEN_V[v]) return; if (!this.lum0[v]) this.lum0[v] = Object.assign({}, LUMEN_V[v]); this.lum[v] = Object.assign(this.lum[v] || {}, o); Object.assign(LUMEN_V[v], o); },
