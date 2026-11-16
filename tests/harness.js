@@ -1,5 +1,5 @@
 // injecté dans la page : utilitaires de test pas à pas (sans rendu)
-Input._apply = Input._apply || Input.apply; Input.apply = function (f, dt) { if (T.inputOn) Input._apply(f, dt); };
+Input._apply = Input._apply || Input.apply; Input.apply = function (f, dt) { if (T.inputOn) { Input._apply(f, dt); if (f.intent) f.intent.holdT = undefined; } }; // en test la simulation va plus vite que l'horloge : la durée d'appui se compte en temps de jeu
 // héros neutre pour les tests mécaniques (les qualités des héros sont testées à part, avec T.realHero)
 T0_realHero = curHero; curHero = () => ({ name: 'Vous', resist: 1, speed: 1, dmg: 1, dash: 1, parry: 0, passive: ['', ''], rapier: Object.assign({}, RAPIERS.garnison), look: Object.assign({}, LOOKS.player) });
 window.T = { realHero: T0_realHero,
