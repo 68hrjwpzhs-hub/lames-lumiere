@@ -90,7 +90,7 @@ const Anim4 = {
   },
   pose(f) { const s = this.st(f), P = f.pose, o = {}; for (const k of KEYS) o[k] = P[k] + (s.off[k] || 0); return o; },
   // articulations visuelles : on décale la pose de jeu sur place le temps du calcul (la main gauche, dague ou cape, n'est placée que pour la pose du personnage)
-  joints(f) { const s = this.st(f), P = f.pose, keep = {}; for (const k of KEYS) { keep[k] = P[k]; P[k] += s.off[k] || 0; } try { return f.joints(); } finally { for (const k of KEYS) P[k] = keep[k]; } },
+  joints(f) { const s = this.st(f), P = f.pose, keep = {}; for (const k of KEYS) { keep[k] = P[k]; P[k] += s.off[k] || 0; } const bo = typeof Art !== 'undefined' && Art.bladeOff ? Art.bladeOff(f) : null; if (bo) { P.a3 += bo.a3; P.a2 += bo.a2; P.bz = clamp((P.bz || 0) + bo.bz, -70, 70); } try { return f.joints(); } finally { for (const k of KEYS) P[k] = keep[k]; } },
   bendNow(f) { const s = this.st(f), t = G.time - s.bendT; if (t < 0 || t > .7) return 0; return s.bendA * Math.exp(-t * 7) * Math.sin(t * 52); },
 };
 // la lame qui plie : la garde se dessine comme avant, la lame est tracée en courbe par-dessus
@@ -171,7 +171,7 @@ body.ui5 .opt{border-color:rgba(190,196,206,.35)}body.ui5 .opt[aria-pressed="tru
 @media (prefers-reduced-motion:reduce){.screen:not([hidden]){animation:none}}`; document.head.appendChild(css);
     // options
     const row = $('optLumen') && $('optLumen').parentElement; const opt = (id, label, key, def) => { if (!row || $(id)) return; const c = document.createElement('button'); c.className = 'opt small'; c.id = id; c.textContent = label; const on = () => (def ? store.get(key, true) !== false : store.get(key, false) === true); c.addEventListener('click', () => { store.set(key, !on()); c.setAttribute('aria-pressed', on()); if (key === 'ct2d.perf4') Perf4.show(); }); row.appendChild(c); c.setAttribute('aria-pressed', on()); };
-    opt('optAnim4', 'Mouvements enrichis', 'ct2d.anim4', true); opt('optRes4', 'Définition auto', 'ct2d.res4', true); opt('optPerf4', 'Compteur d\'images', 'ct2d.perf4', false);  opt('optRays4', 'Rayons de lumière', 'ct2d.rayons', true); opt('optItal6', 'Escrime à l\'italienne', 'ct2d.ital', true);
+    opt('optAnim4', 'Mouvements enrichis', 'ct2d.anim4', true); opt('optRes4', 'Définition auto', 'ct2d.res4', true); opt('optPerf4', 'Compteur d\'images', 'ct2d.perf4', false);  opt('optRays4', 'Rayons de lumière', 'ct2d.rayons', true); opt('optItal6', 'Escrime à l\'italienne', 'ct2d.ital', true); opt('optLames6', 'Chemins de lame', 'ct2d.lames6', true);
     if (row && !$('optPerf4x')) { const c = document.createElement('button'); c.className = 'opt small'; c.id = 'optPerf4x'; c.textContent = 'Copier la mesure'; c.addEventListener('click', async () => { const t = Perf4.report(); try { await navigator.clipboard.writeText(t); toastMsg('Mesure copiée : collez-la dans un message.'); } catch (e) { prompt('Copiez ce texte :', t); } }); row.appendChild(c); }
   },
   // traînée d'un coup rapide : un éventail translucide entre la lame d'avant et celle d'aujourd'hui
