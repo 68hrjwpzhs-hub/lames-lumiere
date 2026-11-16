@@ -91,7 +91,7 @@ let fails = 0; const ok = (n, c, d) => { if (!c) fails++; console.log((c ? 'PASS
     o.moved = !!(G.p._a4 && Object.keys(G.p._a4.off).length); return o; });
   ok('4.0 : dessiner la pose enrichie ne change rien à la simulation (positions, articulations, pointe, souffle)', r.diffs.length === 0 && r.moved, r);
   r = await E(() => { const o = {}; store.set('ct2d.lumenq', 'haute'); Lumen.slow = 0; Res4.k = .7; G.render(0); o.lq = Lumen.lq; o.w = Lumen.layers.act.cv.width; Res4.k = 1; G.render(0); o.lq1 = Lumen.lq; o.w1 = Lumen.layers.act.cv.width;
-    Res4.kb = 1; for (let i = 0; i < 95; i++) Res4.update(26); o.down = Res4.kb; Res4.k = 1; Res4.kb = 1;
+    Res4.kb = 1; for (let i = 0; i < 95; i++) Res4.update(26); o.down = Res4.kb; Res4.set(0);
     G.toMenu(); G.startMatch({ mode: 'duel', noJoute: true, venue: 'eglise' }); T.stepUntil(() => G.state === 'fight', 900); G.render(0); const gl = Lumen.gl; o.ray = gl.getUniform(Lumen.P.fin.p, Lumen.P.fin.u.ray)[2];
     store.set('ct2d.perf4', true); Perf4.show(); o.perfEl = !!$('perf4') && !$('perf4').hidden; o.rep = Perf4.report().includes('im/s'); store.set('ct2d.perf4', false); Perf4.show();
     const w0 = G.wins[0]; Hud4.lastWins = G.wins.join(','); G.wins[0]++; Hud4.step(.016); o.seal = Hud4.seals.length; G.render(.016); G.wins[0] = w0; Hud4.seals = [];
