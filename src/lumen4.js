@@ -53,6 +53,8 @@ const Anim4 = {
     // 2) anticipation et « le corps avant le bras » : pendant la préparation, le buste part en arrière et le bras se ramène ;
     //    au départ du coup, le buste mène, le bras suit
     if (ph === 'prep') { const u = clamp(f.t / Math.max(.05, m.wu), 0, 1); tgt.torso = (tgt.torso || 0) - 5 * Math.sin(Math.PI * u); tgt.a1 = (tgt.a1 || 0) - 7 * Math.sin(Math.PI * u); tgt.py = -2.5 * Math.sin(Math.PI * u); }
+    // 6.3 · pointe vivante (Fabris) : en garde, la pointe ne reste jamais immobile, elle trace un petit cercle ; le corps respire
+    if (f.state === 'idle' && store.get('ct2d.ital', true) !== false) { const w = G.time * 2.3 + (f === G.e ? 1.7 : 0); tgt.a3 = (tgt.a3 || 0) + 2.2 * Math.sin(w); tgt.a2 = (tgt.a2 || 0) + 1.4 * Math.cos(w); tgt.torso = (tgt.torso || 0) + .8 * Math.sin(w * .5); tgt.b1 = (tgt.b1 || 0) + 3 * Math.sin(w * .5 + 1); }
     // 3 bis) jeu d'acteur réglé par les animateurs dans l'atelier (art/animations.json) : décalages par coup et par phase
     if (typeof Art !== 'undefined' && m && ph) Art.animTarget(m.kind, ph, tgt, f.t, m);
     // 3) après le coup : le corps dépasse puis revient en garde
@@ -67,7 +69,7 @@ const Anim4 = {
     const lk = this.lock(f);
     for (const k of KEYS) { const kk = { torso: [90, 11], a1: [140, 13], a2: [170, 14], a3: [220, 15], head: [70, 9], b1: [80, 8], b2: [90, 8], py: [120, 14], px: [110, 14] }[k]; if (!kk) continue;
       const o = s.off[k] || 0, v = s.vel[k] || 0, T = tgt[k] || 0, acc = (T - o) * kk[0] - v * kk[1]; let nv = v + acc * dt, no = o + nv * dt;
-      const cap = k === 'py' || k === 'px' ? 5 : 16; no = clamp(no, -cap, cap); s.vel[k] = nv; s.off[k] = A4_FREE.includes(k) ? no : no * (1 - lk); }
+      const cap = k === 'py' || k === 'px' ? 6 : k === 'b1' || k === 'b2' ? 40 : 16; no = clamp(no, -cap, cap); s.vel[k] = nv; s.off[k] = A4_FREE.includes(k) ? no : no * (1 - lk); }
   },
   // petite poupée de chiffon : trois chaînes (bras armé et lame, bras libre, tête) accrochées au corps, qui suit la chute du jeu ;
   // chaque maillon garde sa longueur, la gravité les tire, le sol les arrête ; on en déduit des angles qu'on ajoute à la pose
@@ -169,13 +171,26 @@ body.ui5 .opt{border-color:rgba(190,196,206,.35)}body.ui5 .opt[aria-pressed="tru
 @media (prefers-reduced-motion:reduce){.screen:not([hidden]){animation:none}}`; document.head.appendChild(css);
     // options
     const row = $('optLumen') && $('optLumen').parentElement; const opt = (id, label, key, def) => { if (!row || $(id)) return; const c = document.createElement('button'); c.className = 'opt small'; c.id = id; c.textContent = label; const on = () => (def ? store.get(key, true) !== false : store.get(key, false) === true); c.addEventListener('click', () => { store.set(key, !on()); c.setAttribute('aria-pressed', on()); if (key === 'ct2d.perf4') Perf4.show(); }); row.appendChild(c); c.setAttribute('aria-pressed', on()); };
-    opt('optAnim4', 'Mouvements enrichis', 'ct2d.anim4', true); opt('optRes4', 'Définition auto', 'ct2d.res4', true); opt('optPerf4', 'Compteur d\'images', 'ct2d.perf4', false);  opt('optRays4', 'Rayons de lumière', 'ct2d.rayons', true);
+    opt('optAnim4', 'Mouvements enrichis', 'ct2d.anim4', true); opt('optRes4', 'Définition auto', 'ct2d.res4', true); opt('optPerf4', 'Compteur d\'images', 'ct2d.perf4', false);  opt('optRays4', 'Rayons de lumière', 'ct2d.rayons', true); opt('optItal6', 'Escrime à l\'italienne', 'ct2d.ital', true);
     if (row && !$('optPerf4x')) { const c = document.createElement('button'); c.className = 'opt small'; c.id = 'optPerf4x'; c.textContent = 'Copier la mesure'; c.addEventListener('click', async () => { const t = Perf4.report(); try { await navigator.clipboard.writeText(t); toastMsg('Mesure copiée : collez-la dans un message.'); } catch (e) { prompt('Copiez ce texte :', t); } }); row.appendChild(c); }
   },
   // traînée d'un coup rapide : un éventail translucide entre la lame d'avant et celle d'aujourd'hui
+  // 6.3 · le fil de la stoccata : une estocade ne balaie pas, elle file ; un trait de lumière suit la pointe, et un éclat la marque
+  // quand le bras arrive au bout de son extension
+  filo(g, f, s, pv, cur, dt) {
+    const ph = f.phase(), gx = typeof Lumen !== 'undefined' && Lumen.on && Lumen.cur && g === Lumen.cur.act ? Lumen.cur.fx : g;
+    if (ph === 'exec' && dt > 3) { s.filoV = dt; const bx = cur.tip[0] - cur.wr[0], by = cur.tip[1] - cur.wr[1], bl = Math.hypot(bx, by) || 1, L = Math.min(70, 14 + dt * 2.2), x0 = cur.tip[0] - bx / bl * L, y0 = cur.tip[1] - by / bl * L;
+      gx.save(); gx.globalCompositeOperation = 'lighter'; const gr = gx.createLinearGradient(x0, y0, cur.tip[0], cur.tip[1]); gr.addColorStop(0, 'rgba(255,240,205,0)'); gr.addColorStop(1, 'rgba(255,244,220,.55)'); gx.strokeStyle = gr; gx.lineWidth = 1.4; gx.lineCap = 'round'; gx.beginPath(); gx.moveTo(x0, y0); gx.lineTo(cur.tip[0], cur.tip[1]); gx.stroke(); gx.restore(); }
+    if ((ph === 'exec' || ph === 'rec') && (s.filoV || 0) > 6 && dt < 2.5 && s.filoK !== f.move) { s.filoK = f.move; s.filoT = G.time; s.filoP = cur.tip.slice(); }
+    if (ph !== 'exec') s.filoV = 0;
+    const a = G.time - (s.filoT || -9); if (a >= 0 && a < .22 && s.filoP) { const k = 1 - a / .22, r = 3 + 9 * (1 - k), [x, y] = s.filoP;
+      gx.save(); gx.globalCompositeOperation = 'lighter'; gx.strokeStyle = `rgba(255,246,225,${.7 * k})`; gx.lineWidth = 1.1; gx.beginPath(); gx.moveTo(x - r, y); gx.lineTo(x + r, y); gx.moveTo(x, y - r * .6); gx.lineTo(x, y + r * .6); gx.stroke();
+      const rg = gx.createRadialGradient(x, y, 0, x, y, 5); rg.addColorStop(0, `rgba(255,250,235,${.8 * k})`); rg.addColorStop(1, 'rgba(255,250,235,0)'); gx.fillStyle = rg; gx.fillRect(x - 5, y - 5, 10, 10); gx.restore(); }
+  },
   smear(g, f) {
     if (!Anim4.on() || !f.J) return; const s = Anim4.st(f), j = f.J, cur = { wr: j.wr.slice(), tip: j.tip.slice() }, pv = s.sm; s.sm = cur;
     if (!pv || f.state !== 'attack' || !f.move || f.move.kind === 'pending') return; const a0 = Math.atan2(pv.tip[1] - pv.wr[1], pv.tip[0] - pv.wr[0]), a1 = Math.atan2(cur.tip[1] - cur.wr[1], cur.tip[0] - cur.wr[0]), da = Math.abs(Math.atan2(Math.sin(a1 - a0), Math.cos(a1 - a0))), dt = Math.hypot(cur.tip[0] - pv.tip[0], cur.tip[1] - pv.tip[1]);
+    if (store.get('ct2d.ital', true) !== false && f.phase && ['jab', 'fente', 'bassa', 'circ', 'heavy', 'riposte', 'compo', 'degage'].includes(f.move.kind)) this.filo(g, f, s, pv, cur, dt);
     if (da < .09 && dt < 16) return; const gx = typeof Lumen !== 'undefined' && Lumen.on && Lumen.cur && g === Lumen.cur.act ? Lumen.cur.fx : g;
     gx.save(); gx.globalCompositeOperation = 'lighter'; const gr = gx.createLinearGradient(cur.wr[0], cur.wr[1], cur.tip[0], cur.tip[1]); gr.addColorStop(0, 'rgba(230,236,250,0)'); gr.addColorStop(1, `rgba(230,236,250,${clamp(.08 + da * .6 + dt * .004, 0, .32)})`);
     gx.fillStyle = gr; gx.beginPath(); gx.moveTo(lerp(pv.wr[0], pv.tip[0], .4), lerp(pv.wr[1], pv.tip[1], .4)); gx.lineTo(pv.tip[0], pv.tip[1]); gx.lineTo(cur.tip[0], cur.tip[1]); gx.lineTo(lerp(cur.wr[0], cur.tip[0], .4), lerp(cur.wr[1], cur.tip[1], .4)); gx.closePath(); gx.fill(); gx.restore();

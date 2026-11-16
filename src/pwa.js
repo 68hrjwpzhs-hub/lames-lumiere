@@ -1,5 +1,5 @@
 // =============================== version installable (PWA) : hors ligne, mise à jour proposée au menu seulement ===============================
-const GAME_VERSION = '7.0.0', LUMIERE_VERSION = '6.2'; // Édition Lumière : mêmes mécaniques que la 7.0.0, autre moteur de rendu
+const GAME_VERSION = '7.0.0', LUMIERE_VERSION = '6.3'; // Édition Lumière : mêmes mécaniques que la 7.0.0, autre moteur de rendu
 const PWA = {
   init() {
     const v = $('verLine'); if (v) v.textContent = 'Version ' + GAME_VERSION + ' · Édition Lumière ' + LUMIERE_VERSION + (this.installed() ? ' · installée' : '');

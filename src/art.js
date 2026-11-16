@@ -26,6 +26,36 @@ const ART_ANIM_DEFAULT = {
   griffe: { prep: { torso: -3, py: -2 }, exec: { head: 4, b1: -6 }, rec: { torso: 2 } },
   lie: { prep: { a2: 4, torso: -1 }, exec: { head: 2 }, rec: { torso: 1 } },
 };
+// 6.3 · scuola italiana : chaque coup joué comme dans les traités (Capo Ferro, Fabris, Giganti), sur tout le coup.
+// Temps s : 0→1 préparation, 1→2 exécution, 2→3 retour ; chaque clé : [[s, valeur], …], nulle à 0 et à 3, lissée entre les points.
+// Pendant l'exécution, seuls la tête et le bras libre bougent (la lame reste celle des règles) ; le reste ne joue qu'avant et après.
+const ITAL = {
+  // stoccata : compacte, le poignet mène, le contrepoids répond à peine
+  jab: { torso: [[.5, -2.5], [.95, -1], [2.25, 2], [2.7, -.6]], a1: [[.55, -4], [.9, -1.5]], a3: [[.5, 3], [.9, -2], [2.3, -2.5]], head: [[.6, -2], [1.4, 4], [2.4, 1]], b1: [[.6, 10], [1.3, -14], [1.8, -18], [2.35, 6], [2.75, -2]], b2: [[.6, 12], [1.5, -16], [2.4, 6]], py: [[.55, -1.5], [2.3, 1]] },
+  // passata / stoccata lunga : on se charge sur la jambe arrière, le bras libre monte comme une aile,
+  // puis il est lancé en arrière et vers le bas (contrappeso) ; au retour, c'est lui qui « rappelle » le corps
+  fente: { torso: [[.45, -5], [.9, -2], [2.2, 3.5], [2.65, -1.5]], a1: [[.5, -6], [.92, -2]], a3: [[.5, 4], [.9, -1], [2.25, -3]], py: [[.5, -4], [.9, -1.5], [2.3, 2], [2.7, -.8]], head: [[.5, -3], [1.35, 6], [1.9, 7], [2.5, 2]], b1: [[.55, 26], [.95, 18], [1.4, -22], [1.85, -30], [2.25, 14], [2.65, -4]], b2: [[.55, 30], [1.4, -22], [1.9, -26], [2.35, 10]] },
+  // stoccata sotto : le corps plonge, la tête passe sous la ligne, la main libre descend vers le sol
+  bassa: { torso: [[.5, 3], [.92, 4], [2.3, -2.5]], py: [[.5, -5], [.92, -3], [2.3, 2.5]], a1: [[.5, -4]], head: [[.55, 4], [1.4, 9], [1.9, 8], [2.4, 2]], b1: [[.6, -8], [1.4, 34], [1.9, 38], [2.4, 8]], b2: [[.6, -6], [1.4, 28], [1.9, 30], [2.4, 6]] },
+  // cavazione : la pointe fait un petit cercle serré autour du fer adverse, le corps ne bouge presque pas
+  degage: { a3: [[.25, 7], [.5, 0], [.75, -6], [.95, -2], [2.3, -2]], a2: [[.25, -3], [.5, 5], [.75, 2]], torso: [[.4, -1.5], [2.3, 1.5]], head: [[.5, -2], [1.4, 3], [2.3, 1]], b1: [[.5, 6], [1.4, -10], [2.3, 4]], b2: [[.5, 8], [1.4, -10]] },
+  // imbroccata : le corps s'élève, la main monte en prima, puis tout plonge vers la poitrine adverse
+  circ: { py: [[.45, 3], [.9, -2.5], [2.3, 1.5]], torso: [[.45, -5], [.9, 1], [2.3, 3], [2.7, -1]], a1: [[.45, 6], [.85, 2]], a3: [[.45, -6], [.9, 3], [2.3, -3]], head: [[.45, -4], [1.3, 6], [2.4, 2]], b1: [[.45, 24], [1.35, -20], [1.9, -26], [2.35, 10]], b2: [[.45, 26], [1.4, -20], [2.35, 8]] },
+  // finta e cavazione : une menace franche (le buste avance, la tête vise), puis le corps se rassemble et passe dessous
+  compo: { torso: [[.25, 4], [.5, -1], [.7, -4], [.95, -1.5], [2.3, 2.5]], head: [[.25, 4], [.5, -1], [.75, -2], [1.4, 5], [2.4, 1.5]], a3: [[.25, -3], [.55, 6], [.8, -4], [2.3, -2]], py: [[.25, 1], [.7, -3], [2.3, 1.5]], b1: [[.25, -8], [.7, 16], [1.4, -18], [1.9, -22], [2.35, 8]], b2: [[.7, 18], [1.4, -18], [2.35, 6]] },
+  // fente lourde : la grande charge ; le bras libre très haut, la tête rentrée, puis l'abandon complet vers l'avant
+  heavy: { torso: [[.4, -8], [.85, -3], [2.2, 4.5], [2.65, -2]], a1: [[.45, -11], [.9, -3]], a3: [[.45, 6], [2.3, -4]], py: [[.45, -5], [.9, -2], [2.3, 2.5], [2.7, -1]], head: [[.45, -5], [1.3, 7], [1.9, 8], [2.5, 2]], b1: [[.5, 34], [.9, 26], [1.35, -26], [1.85, -34], [2.25, 16], [2.65, -5]], b2: [[.5, 36], [1.4, -26], [1.9, -30], [2.35, 12]] },
+  // risposta : sans préparation, la tête claque vers la cible, le contrepoids part d'un coup
+  riposte: { torso: [[.5, 2], [2.3, 2], [2.7, -.8]], head: [[.6, 2], [1.3, 6], [2.4, 1.5]], b1: [[.6, 6], [1.35, -20], [1.8, -24], [2.35, 8]], b2: [[.6, 8], [1.4, -18], [2.35, 6]], a3: [[2.3, -3]] },
+  // battuta : un coup sec du poignet, la hanche aide à peine, le bras libre se fige
+  beat: { a3: [[.55, 9], [.9, 3], [2.25, -4], [2.6, 1.5]], a2: [[.55, -3]], torso: [[.55, -2], [2.3, 1.5]], head: [[.5, -1.5], [1.4, 2]], b1: [[.55, 8], [1.4, -6], [2.3, 3]], b2: [[.55, 10], [1.4, -6]] },
+  // legamento : le fer est pris en spirale, lentement, le corps s'incline et accompagne
+  lie: { a3: [[.35, 6], [.7, -3], [.95, 2], [2.3, -2]], a2: [[.35, 4], [.7, -2]], torso: [[.5, 3], [.95, 2], [2.4, -1.5]], head: [[.5, 3], [1.4, 4], [2.4, 1]], b1: [[.5, 12], [1.4, -10], [2.35, 5]], b2: [[.5, 14], [1.4, -10]] },
+  // adversaires : le tajo (taille espagnole) et les griffes gardent leur caractère, plus ample
+  tajo: { a1: [[.5, -10], [.9, -4]], torso: [[.5, -5], [2.3, 3]], head: [[.5, -3], [1.4, 5], [2.4, 1]], b1: [[.5, 18], [1.4, -16], [2.35, 6]], b2: [[.5, 18], [1.4, -14]] },
+  griffe: { torso: [[.5, -4], [2.3, 2.5]], py: [[.5, -3], [2.3, 1.5]], head: [[.5, -2], [1.4, 5]], b1: [[.5, -10], [1.4, 8]] },
+};
+const ital = (pts, s) => { let a = [0, 0]; for (const b of pts.concat([[3, 0]])) { if (s <= b[0]) { const u = (s - a[0]) / Math.max(1e-3, b[0] - a[0]), e = u * u * (3 - 2 * u); return a[1] + (b[1] - a[1]) * e; } a = b; } return 0; };
 const ART_ANIM_KEYS = { torso: 'Buste', a1: 'Épaule', a2: 'Coude', head: 'Tête', py: 'Hauteur', b1: 'Bras libre' };
 const Art = {
   rev: 0, heros: {}, decors: {}, effets: {}, anim: {}, lum: {}, lum0: {}, live: [],
@@ -118,7 +148,9 @@ const Art = {
   },
   // ---- jeu d'acteur des coups ----
   animTarget(kind, ph, tgt, t, m) {
-    const A = (this.anim[kind] && this.anim[kind][ph]) || (store.get('ct2d.jeu62', true) !== false && ART_ANIM_DEFAULT[kind] && ART_ANIM_DEFAULT[kind][ph]); if (!A) return; const u = ph === 'prep' ? t / Math.max(.03, m.wu) : ph === 'exec' ? (t - m.wu) / Math.max(.03, m.act) : (t - m.wu - m.act) / Math.max(.03, m.rec), e = Math.sin(Math.PI * clamp(u, 0, 1));
+    const own = this.anim[kind] && this.anim[kind][ph], I = !own && store.get('ct2d.ital', true) !== false && ITAL[kind];
+    if (I) { const sP = ph === 'prep' ? clamp(t / Math.max(.03, m.wu), 0, 1) : ph === 'exec' ? 1 + clamp((t - m.wu) / Math.max(.03, m.act), 0, 1) : 2 + clamp((t - m.wu - m.act) / Math.max(.03, m.rec), 0, 1); for (const k in I) tgt[k] = (tgt[k] || 0) + ital(I[k], sP); return; }
+    const A = own || (store.get('ct2d.jeu62', true) !== false && ART_ANIM_DEFAULT[kind] && ART_ANIM_DEFAULT[kind][ph]); if (!A) return; const u = ph === 'prep' ? t / Math.max(.03, m.wu) : ph === 'exec' ? (t - m.wu) / Math.max(.03, m.act) : (t - m.wu - m.act) / Math.max(.03, m.rec), e = Math.sin(Math.PI * clamp(u, 0, 1));
     for (const k in A) tgt[k] = (tgt[k] || 0) + A[k] * e;
   },
   // ---- lumière des lieux ----
