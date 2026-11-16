@@ -20,20 +20,27 @@ const Perf4 = {
     if (!this.on()) { if (this.el) this.el.hidden = true; return; }
     if (!this.el) { const e = document.createElement('div'); e.id = 'perf4'; e.style.cssText = 'position:fixed;left:calc(env(safe-area-inset-left) + 6px);bottom:6px;z-index:60;font:600 11px/1.3 ui-monospace,monospace;color:#e8dcc0;background:rgba(10,8,6,.7);padding:4px 7px;border-radius:6px;pointer-events:none'; document.body.appendChild(e); this.el = e; }
     this.el.hidden = false; const lu = typeof Lumen !== 'undefined' && Lumen.on;
-    this.el.textContent = `${this.fps} im/s · ${this.ms.toFixed(1)} ms (pire ${this.worst.toFixed(0)})` + (lu ? ` · Lumière ${(Lumen.cost || 0).toFixed(1)} ms · déf. ${Math.round((Lumen.lq || 1) * 100)} %` : ' · rendu simple');
+    this.el.textContent = `${this.fps} im/s · ${this.ms.toFixed(1)} ms (pire ${this.worst.toFixed(0)})` + (lu ? ` · Lumière ${(Lumen.cost || 0).toFixed(1)} ms · déf. ${Math.round((Lumen.lq || 1) * 100)} % · palier ${Res4.lv}` : ' · rendu simple');
   },
   report() { const L = this.log, avg = L.length ? Math.round(L.reduce((a, b) => a + b.fps, 0) / L.length) : this.fps, min = L.length ? Math.min(...L.map(x => x.fps)) : this.fps;
     return `Lames de l'Ombre · Édition Lumière ${typeof LUMIERE_VERSION !== 'undefined' ? LUMIERE_VERSION : ''}\nAppareil : ${navigator.userAgent}\nÉcran : ${screen.width}×${screen.height} @${devicePixelRatio}\nMoyenne en combat : ${avg} im/s (pire seconde : ${min})\nDétail : ${Lumen.quality ? Lumen.quality() : '?'}, définition ${Math.round((Lumen.lq || 1) * 100)} %\n` + L.slice(-60).map(x => `${x.t}s ${x.lieu} ${x.fps} im/s, lumière ${x.lumen} ms, déf. ${x.def}`).join('\n'); },
 };
+// 6.5 · paliers de définition : [personnages, décor, image éclairée entière]. On ne change de palier que rarement
+// (un changement réalloue les calques : une petite secousse), on vise 60 images/s, et un palier qui a déjà fait chuter
+// la cadence n'est pas retenté avant 20 s, puis 40 s, 80 s… : plus de va-et-vient qui saccade.
+const RES6 = [[1, 1, 1], [1, .8, 1], [.9, .65, .9], [.8, .55, .82], [.72, .55, .74], [.62, .55, .66]];
 const Res4 = {
-  k: 1, kb: 1, sum: 0, n: 0, // k : définition des personnages et effets · kb : définition du décor
+  k: 1, kb: 1, g: 1, lv: 0, arr: [], good: 0, fail: {}, // k : personnages et effets · kb : décor · g : image éclairée (toutes les passes de la carte graphique)
   on() { return store.get('ct2d.res4', true) !== false; },
+  set(lv) { this.lv = clamp(lv, 0, RES6.length - 1); [this.k, this.kb, this.g] = RES6[this.lv]; },
   update(dt) {
-    if (!this.on() || G.state !== 'fight' || dt > 200 || dt <= 0) return; this.sum += dt; this.n++; if (this.n < 90) return;
-    const avg = this.sum / this.n; this.sum = 0; this.n = 0;
-    // trop lent : le décor (souvent flou au fond) baisse d'abord, jusqu'à 55 %, puis les personnages, jusqu'à 60 % ; de la marge : l'inverse
-    if (avg > 19.5) { if (this.kb > .55) this.kb = +Math.max(.55, this.kb - .1).toFixed(2); else if (this.k > .6) this.k = +(this.k - .08).toFixed(2); }
-    else if (avg < 15) { if (this.k < 1) this.k = +Math.min(1, this.k + .04).toFixed(2); else if (this.kb < 1) this.kb = +Math.min(1, this.kb + .05).toFixed(2); }
+    if (!this.on()) { if (this.lv) this.set(0); return; }
+    if (G.state !== 'fight' || dt > 200 || dt <= 0) return; this.arr.push(dt); if (this.arr.length < 60) return;
+    const a = this.arr.sort((x, y) => x - y), p80 = a[48], now = performance.now(); this.arr = []; this.p80 = p80;
+    // lent : plus d'une image sur cinq rate le rendez-vous de l'écran (60 Hz)
+    if (p80 > 20.5) { if (this.lv < RES6.length - 1) { const f = this.fail[this.lv] || (this.fail[this.lv] = { t: 0, n: 0 }); f.t = now; f.n++; this.set(this.lv + 1); } this.good = 0; }
+    else if (p80 < 17.6) { if (++this.good >= 4 && this.lv > 0 && (!this.fail[this.lv - 1] || now - this.fail[this.lv - 1].t > 20000 * Math.pow(2, this.fail[this.lv - 1].n - 1))) { this.set(this.lv - 1); this.good = 0; } }
+    else this.good = 0;
   },
 };
 // ---- 2. l'animation, séparée des règles ----

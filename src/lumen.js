@@ -84,7 +84,7 @@ const Lumen = {
   begin(Gm, cam, sx, sy, rot) {
     const cv = Gm.cv;
     // 5.5 : le décor et les personnages ont chacun leur définition ; quand l'appareil peine, le décor (déjà flou au fond) cède d'abord
-    const R = typeof Res4 !== 'undefined' && Res4.on(), base = this.quality() === 'moyenne' ? .75 : 1, q = this.lq = base * (R ? Res4.k : 1), qb = this.lqb = base * (R ? Res4.kb : 1), out = {};
+    const R = typeof Res4 !== 'undefined' && Res4.on(), base = this.quality() === 'moyenne' ? .75 : 1, gk = R && Res4.g || 1, q = this.lq = base * (R ? Res4.k : 1) * gk, qb = this.lqb = base * (R ? Res4.kb : 1) * gk, out = {};
     if (!this.dirtyOn) { this.dirtyOn = true; this.dirty = {}; this.empty = {}; for (const n of ['act', 'fx']) { const g = this.layers[n].g; for (const m of ['fill', 'stroke', 'fillRect', 'strokeRect', 'drawImage', 'fillText', 'strokeText', 'putImageData']) { const o = g[m]; g[m] = function () { Lumen.dirty[n] = true; return o.apply(this, arguments); }; } } }
     this.dirty.act = this.dirty.fx = false;
     for (const n of ['bg', 'act', 'fx']) { const L = this.layers[n], g = L.g, qq = n === 'bg' ? qb : q, lw = Math.round(cv.width * qq), lh = Math.round(cv.height * qq), k = Gm.scale * qq; if (L.cv.width !== lw || L.cv.height !== lh) { L.cv.width = lw; L.cv.height = lh; }
@@ -129,7 +129,7 @@ const Lumen = {
   },
   // ---- assemblage par la carte graphique : appelé une fois les calques dessinés ----
   end(cam) {
-    const g = this.gl, cvm = G.cv, w = cvm.width, h = cvm.height, t0 = performance.now(); if (!this.ok || g.isContextLost()) return false;
+    const g = this.gl, cvm = G.cv, gk = typeof Res4 !== 'undefined' && Res4.on() && Res4.g || 1, w = Math.round(cvm.width * gk), h = Math.round(cvm.height * gk), t0 = performance.now(); if (!this.ok || g.isContextLost()) return false;
     for (const n of ['bg', 'act', 'fx']) this.layers[n].g.restore();
     this.size(w, h); const F = this.F, T = this.T;
     g.pixelStorei(g.UNPACK_FLIP_Y_WEBGL, true); g.pixelStorei(g.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
@@ -147,7 +147,7 @@ const Lumen = {
     u = use(this.P.blurA, F.I1); tex(0, F.I2.t); g.uniform2f(u.d, 2.6 / F.I1.w, 0); g.uniform4f(u.m, 1, 0, 0, 0); quad();
     u = use(this.P.pack, F.I); tex(0, F.I2.t); tex(1, F.I1.t); g.uniform1i(u.n, 0); g.uniform1i(u.t, 1); g.uniform2f(u.d, 0, 2.6 / F.I1.h); quad();
     // 1 bis. le décor flou, pour la profondeur de champ (détail complet seulement)
-    const dofOn = this.quality() !== 'moyenne' && this.dof !== false;
+    const dofOn = this.quality() !== 'moyenne' && this.dof !== false && !(typeof Res4 !== 'undefined' && Res4.lv >= 3); // 6.5 : aux paliers bas, pas de flou de profondeur (deux passes en moins)
     if (dofOn) { u = use(this.P.blur, F.D1); tex(0, T.bg); g.uniform1i(u.t, 0); g.uniform2f(u.d, 1.5 / F.D1.w, 0); quad(); u = use(this.P.blur, F.D2); tex(0, F.D1.t); g.uniform2f(u.d, 0, 1.5 / F.D1.h); quad(); }
     // 2. la scène éclairée
     const S = this.sun(), C = S.C, Ls = this.lights(cam), L = new Float32Array(32), LC = new Float32Array(32); Ls.forEach((l, i) => { L.set([l.x, l.y, l.z, l.r], i * 4); LC.set([l.c[0] * l.i, l.c[1] * l.i, l.c[2] * l.i, l.sh + l.flame * 2], i * 4); });
