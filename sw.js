@@ -1,0 +1,17 @@
+// service worker : tout le jeu en cache (hors ligne) ; une nouvelle version attend que le joueur la demande au menu
+const CACHE = 'ldl-7.0.0-L6.0'; // préfixe propre à l'Édition Lumière : le jeu principal (ldo-) et elle ne touchent pas au cache l'un de l'autre
+const CORE = ['./', './index.html', './manifest.webmanifest', './icons/apple-touch-icon.png', './icons/icon-192.png', './icons/icon-512.png'];
+const DECORS = ["./decors/academia.webp", "./decors/alcazar.webp", "./decors/arsenal.webp", "./decors/auberge.webp", "./decors/bastion.webp", "./decors/canal.webp", "./decors/chatelet.webp", "./decors/cloitre.webp", "./decors/eglise.webp", "./decors/galerie.webp", "./decors/loggia.webp", "./decors/navire.webp", "./decors/nuit.webp", "./decors/palais.webp", "./decors/plaza.webp", "./decors/pre.webp", "./decors/salle.webp", "./decors/toits.webp"]; // chargés en arrière-plan, sans retarder l'installation
+self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE).then(() => { c.addAll(DECORS).catch(() => {}); }))); });
+self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('ldl-') && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
+self.addEventListener('message', e => { if (e.data === 'skipWaiting') self.skipWaiting(); });
+self.addEventListener('fetch', e => {
+  const r = e.request; if (r.method !== 'GET') return;
+  const font = /fonts\.(googleapis|gstatic)\.com/.test(r.url);
+  if (!font && new URL(r.url).origin !== location.origin) return;
+  e.respondWith(caches.open(CACHE).then(async c => {
+    const hit = await c.match(r, { ignoreSearch: r.mode === 'navigate' }) || (r.mode === 'navigate' ? await c.match('./index.html') : null);
+    if (hit) return hit;
+    try { const res = await fetch(r); if (res && (res.ok || res.type === 'opaque')) c.put(r, res.clone()); return res; } catch (err) { return hit || Response.error(); }
+  }));
+});
