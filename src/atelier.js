@@ -62,7 +62,7 @@ const Atelier = {
         h('div', { class: 'row' }, [h('button', { text: 'Déclencher', onclick: () => Art.fire(fx.sur, G.p && G.e ? [(G.p.x + G.e.x) / 2, GROUND - 150] : [480, 300]) }),
           h('button', { class: 'ghost', text: 'Exporter effets.json', onclick: () => Art.save('effets.json', Object.fromEntries(Object.entries(Art.effets).map(([n, e]) => [n, { fichier: n + '.png', images: e.images, ips: e.ips, taille: e.taille, sur: e.sur, fusion: e.fusion }]))) })]));
     } else if (this.tab === 'anim') {
-      const moves = Object.keys(MOVES).filter(k => MOVES[k].wu).map(k => [k, MOVES[k].name || k]), A = Art.anim[this.sel.move] || (Art.anim[this.sel.move] = {}), P = A[this.sel.phase] || (A[this.sel.phase] = {});
+      const moves = Object.keys(MOVES).filter(k => MOVES[k].wu).map(k => [k, MOVES[k].name || k]), A = Art.anim[this.sel.move] || (Art.anim[this.sel.move] = {}), D0 = (ART_ANIM_DEFAULT[this.sel.move] || {})[this.sel.phase] || {}, P = A[this.sel.phase] || (A[this.sel.phase] = Object.assign({}, D0)); // on part du jeu d'acteur par défaut
       E.append(this.pick('Coup', 'move', moves), this.pick('Phase', 'phase', [['prep', 'Préparation'], ['exec', 'Exécution (tête et bras libre seulement)'], ['rec', 'Retour en garde']]));
       for (const k in ART_ANIM_KEYS) E.appendChild(this.slider(ART_ANIM_KEYS[k], P[k] || 0, -20, 20, .5, v => { P[k] = v; }));
       E.append(h('div', { class: 'row' }, [h('button', { text: 'Rejouer le coup', onclick: () => { if (G.state !== 'fight') this.essai(); setTimeout(() => { try { G.p.x = 300; G.e.x = 700; G.p.startMove(this.sel.move); } catch (e) { } }, G.state === 'fight' ? 0 : 2600); } }),

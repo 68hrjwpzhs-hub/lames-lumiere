@@ -99,6 +99,10 @@ const L5 = {
     for (const id of Touch5.ids) { const el = $(id); if (el) el.addEventListener('pointerdown', e => { try { Touch5.rec(id, el, e); } catch (x) { } }, { capture: true, passive: true }); }
     Touch5.apply();
     const css = document.createElement('style'); css.textContent = '.tb small{transition:opacity .6s}.tb.t5known small{opacity:0}'; document.head.appendChild(css);
+    // 6.1 · cibles tactiles : au moins 44 points de haut (recommandation d'Apple) pour les options, les fenêtres et l'atelier ; les sceaux de la carte passent au-dessus du dessin
+    const tc = document.createElement('style'); if (matchMedia('(pointer:coarse)').matches || (navigator.maxTouchPoints || 0) > 0 || 'ontouchstart' in window) document.documentElement.classList.add('touch6');
+    tc.textContent = `html.touch6 :is(.opt,.btn.small,.card button,#a5QuickBox button,.a5-sheet button,[id^="p5"] button,#atelier button,#atelier select,details>summary){min-height:44px}
+      html.touch6 details>summary{display:flex;align-items:center}html.touch6 :is(#p5X,#a5QClose,#r5Back,#p5Back,button[aria-label="Fermer"],button[aria-label="Fermer l'atelier"]){min-width:44px;min-height:44px}html.touch6 .p5-seal{z-index:3}`; document.head.appendChild(tc);
     // gerbes d'étincelles par la carte graphique ; conseils ; compte des duels
     const ev = G.event; G.event = function (type, info) { const r = ev.apply(this, arguments); try {
       const tip = info && info.a && info.a.J ? info.a.J.tip : null, fl = this.flare ? [this.flare.x, this.flare.y] : null;

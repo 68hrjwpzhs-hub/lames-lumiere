@@ -11,7 +11,7 @@ const Input = {
       if (['Space', 'ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp'].includes(e.code)) e.preventDefault();
       if (e.code === 'Escape' || e.code === 'KeyP') { if (G.state === 'fight') G.pause(); else if (G.state === 'pause') G.resume(); else if (G.state === 'demo') Demo.stop(); return; }
       if (e.repeat) return; this.keys.add(e.code); this.usingTouch = false; Snd.init();
-      if (e.code === 'KeyJ') this.pressed.attack = true;
+      if (e.code === 'KeyJ') { this.pressed.attack = true; this.atkT = performance.now(); }
       if (e.code === 'KeyK') this.pressed.feint = true;
       if (e.code === 'KeyI' || e.code === 'KeyU') this.pressed.esq = true;
       if (G.state === 'over' && e.code === 'Enter' && !$('over').hidden) $('again').click();
@@ -37,7 +37,7 @@ const Input = {
       el.addEventListener('pointerdown', e => { e.preventDefault(); if (pid !== null) return; pid = e.pointerId; this.usingTouch = e.pointerType !== 'mouse'; try { el.setPointerCapture(pid); } catch (_) { } el.classList.add('down'); Snd.init(); down(); });
       el.addEventListener('pointerup', rel); el.addEventListener('pointercancel', rel); el.addEventListener('lostpointercapture', rel);
       el.addEventListener('contextmenu', e => e.preventDefault()); el.addEventListener('click', e => e.preventDefault()); };
-    hold('bAtk', () => { this.pressed.attack = true; this.btn.attack = true; }, () => { this.btn.attack = false; });
+    hold('bAtk', () => { this.pressed.attack = true; this.btn.attack = true; this.atkT = performance.now(); }, () => { this.btn.attack = false; });
     hold('bFeint', () => { this.pressed.feint = true; });
     hold('bEsq', () => { this.pressed.esq = true; });
     hold('bGuard', () => { this.btn.guard = true; }, () => { this.btn.guard = false; });
@@ -65,6 +65,8 @@ const Input = {
     // une seule garde (maintenue) ; Attaque maintenue → fente lourde
     it.guard = this.btn.guard || this.keys.has('KeyL') || this.keys.has('Space');
     it.holdAtk = this.btn.attack || this.keys.has('KeyJ');
+    // durée réelle de l'appui (horloge du téléphone) : une image qui traîne ne doit pas transformer un toucher bref en coup lourd
+    it.holdT = it.holdAtk && this.atkT ? (performance.now() - this.atkT) / 1000 : 0;
     if (this.feintNext) { it.act = 'feint'; this.feintNext = false; }
     if (this.pressed.attack && fi.ripOffer && now <= fi.ripOffer.end) { it.rip = true; this.pressed.attack = false; } // pendant l'offre, le bouton Attaque devient Riposte (sous le pouce)
     if (this.pressed.attack) {

@@ -9,6 +9,23 @@
 const ART_NAMES = { legB: 'Jambe arrière', legF: 'Jambe avant', skirt: 'Jupe, pans, robe', torso: 'Buste et cou', head: 'Tête et chapeau', arm: 'Bras armé', rapier: 'Rapière', hand: 'Main armée', cape: 'Étoffe de la cape' };
 const ART_EVENTS = { parry: 'parade', hit: 'touche', clash: 'croisement', block: 'blocage' };
 const ART_LUM_KEYS = { key: [0, 1.2, 'Lumière principale'], amb: [0, 1.2, 'Ambiance'], fog: [0, .8, 'Brume'], gloss: [0, .8, 'Brillant du sol'], kz: [-1, 1.5, 'Hauteur de la lumière'] };
+// 6.2 · jeu d'acteur par défaut de chaque coup (degrés ; hauteur en pixels) : élan avant de frapper, buste qui accompagne,
+// tête qui suit la lame, bras libre en contrepoids, petit rebond au retour en garde. Pendant l'exécution, seuls la tête et le bras libre
+// bougent (la lame reste celle des règles). Ce que les animateurs règlent dans l'atelier remplace la phase correspondante.
+const ART_ANIM_DEFAULT = {
+  jab: { prep: { torso: -2, a1: -4, b1: 4 }, exec: { head: 3, b1: -6 }, rec: { torso: 1.5, py: 1 } },
+  fente: { prep: { torso: -4, a1: -5, py: -3, b1: 10 }, exec: { head: 5, b1: -14 }, rec: { torso: 3, py: 1.5, b1: 4 } },
+  bassa: { prep: { torso: 3, py: -4, a1: -3 }, exec: { head: 6, b1: -8 }, rec: { py: 2, torso: -1.5 } },
+  degage: { prep: { a1: -3, a2: 4, torso: -1 }, exec: { head: 3 }, rec: { torso: 1 } },
+  circ: { prep: { a2: 5, torso: -1.5 }, exec: { head: 3, b1: -5 }, rec: { torso: 1 } },
+  compo: { prep: { torso: -2, a1: -3 }, exec: { head: 4, b1: -6 }, rec: { torso: 2 } },
+  heavy: { prep: { torso: -7, a1: -10, py: -4, b1: 12 }, exec: { head: 6, b1: -16 }, rec: { torso: 4, py: 2, b1: 5 } },
+  riposte: { prep: { torso: 3, a1: -2 }, exec: { head: 4, b1: -9 }, rec: { torso: 1.5 } },
+  beat: { prep: { a1: -6, torso: -1 }, exec: { head: 2 }, rec: { torso: 1 } },
+  tajo: { prep: { a1: -9, torso: -4, b1: 8 }, exec: { head: 4, b1: -10 }, rec: { torso: 3 } },
+  griffe: { prep: { torso: -3, py: -2 }, exec: { head: 4, b1: -6 }, rec: { torso: 2 } },
+  lie: { prep: { a2: 4, torso: -1 }, exec: { head: 2 }, rec: { torso: 1 } },
+};
 const ART_ANIM_KEYS = { torso: 'Buste', a1: 'Épaule', a2: 'Coude', head: 'Tête', py: 'Hauteur', b1: 'Bras libre' };
 const Art = {
   rev: 0, heros: {}, decors: {}, effets: {}, anim: {}, lum: {}, lum0: {}, live: [],
@@ -101,7 +118,7 @@ const Art = {
   },
   // ---- jeu d'acteur des coups ----
   animTarget(kind, ph, tgt, t, m) {
-    const A = this.anim[kind] && this.anim[kind][ph]; if (!A) return; const u = ph === 'prep' ? t / Math.max(.03, m.wu) : ph === 'exec' ? (t - m.wu) / Math.max(.03, m.act) : (t - m.wu - m.act) / Math.max(.03, m.rec), e = Math.sin(Math.PI * clamp(u, 0, 1));
+    const A = (this.anim[kind] && this.anim[kind][ph]) || (store.get('ct2d.jeu62', true) !== false && ART_ANIM_DEFAULT[kind] && ART_ANIM_DEFAULT[kind][ph]); if (!A) return; const u = ph === 'prep' ? t / Math.max(.03, m.wu) : ph === 'exec' ? (t - m.wu) / Math.max(.03, m.act) : (t - m.wu - m.act) / Math.max(.03, m.rec), e = Math.sin(Math.PI * clamp(u, 0, 1));
     for (const k in A) tgt[k] = (tgt[k] || 0) + A[k] * e;
   },
   // ---- lumière des lieux ----

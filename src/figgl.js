@@ -15,7 +15,7 @@ const FG_PARTS = {
   legB: { r: [16, 56, 80, 182], bones: [[[40, 70], [40, 115]], [[40, 115], [40, 160]], [[40, 160], [60, 160]]], axis: 'y', k1: 115, k2: 160, hw: 9.5, grid: [7, 16] },
   legF: { r: [86, 56, 150, 182], bones: [[[110, 70], [110, 115]], [[110, 115], [110, 160]], [[110, 160], [130, 160]]], axis: 'y', k1: 115, k2: 160, hw: 9.5, grid: [7, 16] },
   torso: { r: [160, 34, 282, 262], bones: [[[220, 140], [220, 82]]], hw: 21, grid: [9, 12], rigid: true },
-  head: { r: [284, 6, 388, 124], bones: [[[330, 86], [330, 70]]], hw: 15, grid: [7, 7], rigid: true, sphere: [330, 70] },
+  head: { r: [284, 6, 388, 124], bones: [[[330, 86], [330, 70]]], hw: 15, grid: [14, 14], rigid: true, sphere: [330, 70] },
   arm: { r: [392, 20, 494, 62], bones: [[[410, 42], [441, 42]], [[441, 42], [469, 42]]], axis: 'x', k1: 441, hw: 8.5, grid: [16, 7] },
   rapier: { r: [400, 80, 590, 112], bones: [[[418, 96], [530, 96]]], hw: 3, grid: [12, 3], rigid: true, stretch: true },
   hand: { r: [600, 80, 640, 112], bones: [[[618, 96], [630, 96]]], hw: 6, grid: [3, 3], rigid: true },
@@ -80,6 +80,13 @@ const FigGL = {
     const wb = [j.gx - d * 15 * (S.body === 'f' ? .85 : 1), j.gy - 6], wf = [j.gx + d * 14, j.gy - 6]; let hb = legAt(j.bl, k), hf = legAt(j.fl, k); hb = [hb[0] - d * 10, hb[1] + 2]; hf = [hf[0] + d * 10, hf[1] + 2];
     const mid = (hb[0] + hf[0]) / 2; if ((hf[0] - hb[0]) * d < 34) { hb[0] = mid - d * 17; hf[0] = mid + d * 17; } return [wb, wf, hb, hf];
   },
+  // 6.2 · le plumet reprend vie : un ressort pour chaque duelliste, relancé par les déplacements, l'attaque et un souffle d'air
+  plume(f) {
+    const S = norm(f.look); if (!S.plume || f.hatOff || (S.hatType && S.hatType !== 'feutre')) return 0;
+    const s = f._fgPl || (f._fgPl = { a: 0, v: 0, x: f.x, t: G.time }), dt = clamp(G.time - s.t, 0, .05); s.t = G.time; if (!(dt > 0)) return s.a;
+    const vx = (f.x - s.x) / dt; s.x = f.x; const tg = clamp(vx * f.dir * .0022, -.5, .6) + Math.sin(G.time * 2.3 + (f.isPlayer ? 0 : 1.7)) * .06 + (f.state === 'attack' ? .12 : 0) + (f.state === 'hit' ? .3 : 0);
+    s.v += ((tg - s.a) * 70 - s.v * 5.5) * dt; s.a = clamp(s.a + s.v * dt, -.6, .7); return s.a;
+  },
   // le zoom des moments forts s'applique aussi aux maillages et aux particules
   zoom() { if (!(G.zoom > .001)) return null; return { x: G.koFocus ? G.koFocus[0] : (G.p.x + G.e.x) / 2, y: G.koFocus ? G.koFocus[1] : GROUND - 120, k: 1 + G.zoom }; },
   VB: new Float32Array(1 << 16), vn: 0,
@@ -99,7 +106,7 @@ const FigGL = {
     return true;
   },
   push(f, j, a, out) {
-    const d = f.dir, WB = this.worldBones(f, j, a), P = FG_PARTS, Z = this.zoom();
+    const d = f.dir, WB = this.worldBones(f, j, a), P = FG_PARTS, Z = this.zoom(), pl = store.get('ct2d.jeu62', true) !== false ? this.plume(f) : 0;
     for (const name of FG_ORDER) { const p0 = P[name], wb = WB[name]; if (!wb) continue; const b0r = P.rapier.bones[0][0], p = name === 'rapier' ? Object.assign({}, p0, { bones: [[b0r, [b0r[0] + a.len, b0r[1]]]] }) : p0; if (name === 'skirt' && (!a.skb || !wb)) continue; if (!p.bones && !p.skirt) continue;
       // repère de chaque os : origine, axe unitaire, perpendiculaire (retournée quand le personnage regarde à gauche), échelle le long de l'axe
       const fr = p.skirt ? [] : p.bones.map((b0, i) => { const w = wb[i], ax0 = [b0[1][0] - b0[0][0], b0[1][1] - b0[0][1]], l0 = Math.hypot(ax0[0], ax0[1]) || 1, ax = [w[1][0] - w[0][0], w[1][1] - w[0][1]], l = Math.hypot(ax[0], ax[1]) || 1;
@@ -125,6 +132,9 @@ const FigGL = {
             const wx = (F.u[0] * (qx * F.u0[0] + qy * F.u0[1]) + F.pr[0] * (qx * F.p0[0] + qy * F.p0[1])) / R, wy = (F.u[1] * (qx * F.u0[0] + qy * F.u0[1]) + F.pr[1] * (qx * F.p0[0] + qy * F.p0[1])) / R, m = Math.min(1, Math.hypot(wx, wy)), kk = m > 0 ? m / Math.hypot(wx, wy) : 0;
             n = [wx * kk * .95, wy * kk * .95, Math.sqrt(Math.max(.04, 1 - m * m))]; }
         else { const c = clamp(vn / p.hw, -1, 1) * .92, l = Math.hypot(NX, NY) || 1; n = [NX / l * c, NY / l * c, Math.sqrt(Math.max(.05, 1 - c * c))]; }
+        if (pl && name === 'head') { // le plumet (derrière et au-dessus de la calotte) tourne autour de la calotte ; le bord du chapeau ne bouge presque pas
+          const w = clamp((332 - bx) / 26, 0, 1) * clamp((57 - by) / 9, 0, 1); if (w > 0) { const F = fr[0], qx = 332 - F.o0[0], qy = 50 - F.o0[1], uu = qx * F.u0[0] + qy * F.u0[1], vv = qx * F.p0[0] + qy * F.p0[1], px0 = F.o[0] + F.u[0] * uu * F.sc + F.pr[0] * vv, py0 = F.o[1] + F.u[1] * uu * F.sc + F.pr[1] * vv;
+            const th = -pl * w * d, c = Math.cos(th), sn = Math.sin(th), dx = X - px0, dy = Y - py0; X = px0 + dx * c - dy * sn; Y = py0 + dx * sn + dy * c; } }
         if (Z) { X = Z.x + (X - Z.x) * Z.k; Y = Z.y + (Y - Z.y) * Z.k; }
         V.push([X, Y, bx * FG_BK / FG_AW, by * FG_BK / FG_AH, n[0], n[1], n[2], FG_KIND[name] || 0, TX, TY, BX, BY]); }
       const row = gx + 1; for (let iy = 0; iy < gy; iy++) for (let ix = 0; ix < gx; ix++) { const i0 = iy * row + ix, q = [V[i0], V[i0 + 1], V[i0 + row], V[i0 + 1], V[i0 + row + 1], V[i0 + row]]; for (const v of q) this.put(v); }

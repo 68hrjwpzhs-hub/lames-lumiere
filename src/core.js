@@ -431,7 +431,7 @@ class Fighter {
     const m = this.move;
     switch (this.state) {
       case 'attack': {
-        if (m.kind === 'pending') { if (!it.holdAtk) this.startMove(m.want, this.t); else if (this.t >= HOLD_HEAVY) this.startMove('heavy', this.t); break; }
+        if (m.kind === 'pending') { if (!it.holdAtk) this.startMove(m.want, this.t); else if (this.t >= HOLD_HEAVY && (it.holdT === undefined || it.holdT >= HOLD_HEAVY - .02)) this.startMove('heavy', this.t); break; }
         if (m.kind === 'compo' && !m.switched && this.t >= m.switchAt) this.doSwitch();
         const tA = m.wu, tB = tA + m.act, tC = tB + m.rec;
         if (this.t >= tA && this.t - dt < tA) Snd.swish(m.kind === 'heavy' || m.kind === 'fente' ? 1.3 : 1);
